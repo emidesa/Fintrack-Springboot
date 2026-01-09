@@ -1,22 +1,25 @@
 package com.fintrack.api.service;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
+import com.fintrack.api.dto.LoginRequest;
 import com.fintrack.api.dto.UserCreateRequest;
-import com.fintrack.api.dto.UserResponse;
 import com.fintrack.api.dto.UserUpdateRequest;
+import com.fintrack.api.dto.LoginResponse;
+import com.fintrack.api.dto.UserResponse;
 import com.fintrack.api.entity.User;
 import com.fintrack.api.enums.Role;
 import com.fintrack.api.exception.ConflictException;
 import com.fintrack.api.exception.ResourceNotFoundException;
 import com.fintrack.api.mapper.UserMapper;
 import com.fintrack.api.repository.UserRepository;
-
+import com.fintrack.api.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +27,8 @@ public class UserService {
     
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder; 
+    private final JwtUtil jwtUtil; 
     
     @Transactional
     public UserResponse createUser(UserCreateRequest request) {
@@ -32,9 +37,10 @@ public class UserService {
         }
         
         User user = userMapper.toEntity(request);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setIsActive(true);
-        User savedUser = userRepository.save(user);
         
+        User savedUser = userRepository.save(user);
         return userMapper.toResponse(savedUser);
     }
     
@@ -99,5 +105,34 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé avec l'ID: " + id));
         user.setIsActive(false);
         userRepository.save(user);
+    }
+    
+    // Méthode de login
+    @Transactional
+    public LoginResponse login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new BadCredentialsException("Email ou mot de passe incorrect"));
+        
+        if (!user.getIsActive()) {
+            throw new BadCredentialsException("Ce compte est désactivé");
+        }
+        
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new BadCredentialsException("Email ou mot de passe incorrect");
+        }
+        
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
+        
+        return LoginResponse.builder()
+                .token(token)
+                .type("Bearer")
+                .user(userMapper.toResponse(user))
+                .build();
+    }
+    
+    //Pour récupérer un User par email
+    public User findByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé avec l'email: " + email));
     }
 }

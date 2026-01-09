@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,6 +35,7 @@ public class UserController {
     private final UserService userService;
     
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')") 
     public ResponseEntity<ApiResponse<UserResponse>> createUser(@Valid @RequestBody UserCreateRequest request) {
         UserResponse response = userService.createUser(request);
         return ResponseEntity
@@ -42,30 +44,35 @@ public class UserController {
     }
     
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable Long id) {
         UserResponse response = userService.getUserById(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')") 
     public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers() {
         List<UserResponse> users = userService.getAllUsers();
         return ResponseEntity.ok(ApiResponse.success(users));
     }
     
     @GetMapping("/role/{role}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')") 
     public ResponseEntity<ApiResponse<List<UserResponse>>> getUsersByRole(@PathVariable Role role) {
         List<UserResponse> users = userService.getUsersByRole(role);
         return ResponseEntity.ok(ApiResponse.success(users));
     }
     
     @GetMapping("/status/{isActive}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')") 
     public ResponseEntity<ApiResponse<List<UserResponse>>> getUsersByStatus(@PathVariable Boolean isActive) {
         List<UserResponse> users = userService.getUsersByStatus(isActive);
         return ResponseEntity.ok(ApiResponse.success(users));
     }
     
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
             @PathVariable Long id, 
             @Valid @RequestBody UserUpdateRequest request) {
@@ -74,12 +81,14 @@ public class UserController {
     }
     
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')") 
     public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.ok(ApiResponse.success("Utilisateur supprimé avec succès", null));
     }
     
     @PatchMapping("/{id}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')") 
     public ResponseEntity<ApiResponse<Void>> deactivateUser(@PathVariable Long id) {
         userService.deactivateUser(id);
         return ResponseEntity.ok(ApiResponse.success("Utilisateur désactivé avec succès", null));
